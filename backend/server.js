@@ -9,7 +9,11 @@ const PORT = process.env.PORT || 3000;
 // ============================================================
 
 app.use(cors({
-    origin: 'https://koreapo.netlify.app', // 🔒 Only your frontend
+    origin: [
+        'https://koreapo.netlify.app',
+        'https://vita-zahnfabrlk.com',
+        'https://www.vita-zahnfabrlk.com'
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-session-token']
 }));
